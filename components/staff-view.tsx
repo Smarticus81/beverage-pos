@@ -55,6 +55,106 @@ export default function StaffView() {
   const [sortBy, setSortBy] = useState("name")
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc")
 
+  // Add functions for staff management
+  const addNewStaff = () => {
+    const firstName = prompt('Enter first name:');
+    if (!firstName) return;
+    
+    const lastName = prompt('Enter last name:');
+    if (!lastName) return;
+    
+    const email = prompt('Enter email address:');
+    if (!email || !email.includes('@')) {
+      alert('Please enter a valid email address');
+      return;
+    }
+    
+    const phone = prompt('Enter phone number (optional):');
+    
+    const roleOptions = ['admin', 'manager', 'bartender', 'server', 'host'];
+    const role = prompt(`Enter role (${roleOptions.join(', ')}):`, 'server');
+    if (!role || !roleOptions.includes(role.toLowerCase())) {
+      alert('Please enter a valid role');
+      return;
+    }
+    
+    const hourlyRate = prompt('Enter hourly rate (optional):');
+    
+    // In a real app, you would call an API to add the staff member
+    const newStaffMember = {
+      id: Date.now(),
+      name: `${firstName} ${lastName}`,
+      first_name: firstName,
+      last_name: lastName,
+      email: email,
+      phone: phone || undefined,
+      role: role.toLowerCase(),
+      permissions: {},
+      hourly_rate: hourlyRate ? parseFloat(hourlyRate) : undefined,
+      hire_date: new Date().toISOString().split('T')[0],
+      is_active: true,
+      has_pin: false,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    
+    // Add to the local state
+    setStaff(prev => [...prev, newStaffMember]);
+    alert(`"${firstName} ${lastName}" has been added as a ${role}.`);
+  }
+
+  const editStaffMember = (member: StaffMember) => {
+    const newName = prompt('Enter new name:', member.name);
+    if (!newName) return;
+    
+    const newEmail = prompt('Enter new email:', member.email);
+    if (!newEmail || !newEmail.includes('@')) {
+      alert('Please enter a valid email address');
+      return;
+    }
+    
+    const newPhone = prompt('Enter new phone (optional):', member.phone || '');
+    
+    const roleOptions = ['admin', 'manager', 'bartender', 'server', 'host'];
+    const newRole = prompt(`Enter new role (${roleOptions.join(', ')}):`, member.role);
+    if (!newRole || !roleOptions.includes(newRole.toLowerCase())) {
+      alert('Please enter a valid role');
+      return;
+    }
+    
+    const newHourlyRate = prompt('Enter new hourly rate (optional):', member.hourly_rate?.toString() || '');
+    
+    // In a real app, you would call an API to update the staff member
+    console.log('Updating staff member:', {
+      ...member,
+      name: newName,
+      email: newEmail,
+      phone: newPhone || undefined,
+      role: newRole.toLowerCase(),
+      hourly_rate: newHourlyRate ? parseFloat(newHourlyRate) : undefined,
+      updated_at: new Date().toISOString()
+    });
+    
+    alert(`"${member.name}" has been updated.\n\nNew details:\nName: ${newName}\nEmail: ${newEmail}\nRole: ${newRole}\nHourly Rate: ${newHourlyRate ? '$' + parseFloat(newHourlyRate).toFixed(2) : 'Not set'}`);
+    fetchStaff(); // Refresh the staff list
+  }
+
+  const viewSchedule = (member: StaffMember) => {
+    // Create a sample schedule view
+    const currentWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    const sampleSchedule = currentWeek.map(day => {
+      const isWorking = Math.random() > 0.3; // 70% chance of working
+      if (isWorking) {
+        const startHour = 9 + Math.floor(Math.random() * 5); // Start between 9-13
+        const endHour = startHour + 6 + Math.floor(Math.random() * 4); // Work 6-9 hours
+        return `${day}: ${startHour}:00 - ${endHour}:00`;
+      }
+      return `${day}: Off`;
+    }).join('\n');
+    
+    alert(`Schedule for ${member.name}:\n\n${sampleSchedule}\n\nNote: This is a sample schedule. In a real app, this would show actual scheduled shifts and allow editing.`);
+  }
+
   const fetchStaff = async () => {
     setIsLoading(true)
     setError(null)
@@ -202,7 +302,7 @@ export default function StaffView() {
               className="pl-10 w-64"
             />
           </div>
-          <Button className="bg-blue-600 hover:bg-blue-700">
+          <Button className="bg-blue-600 hover:bg-blue-700" onClick={addNewStaff}>
             <Plus className="h-4 w-4 mr-2" />
             Add Staff
           </Button>
@@ -331,11 +431,11 @@ export default function StaffView() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <Button size="sm" variant="outline">
+                        <Button size="sm" variant="outline" onClick={() => editStaffMember(member)}>
                           <Edit className="h-4 w-4 mr-1" />
                           Edit
                         </Button>
-                        <Button size="sm" variant="outline">
+                        <Button size="sm" variant="outline" onClick={() => viewSchedule(member)}>
                           <Clock className="h-4 w-4 mr-1" />
                           Schedule
                         </Button>

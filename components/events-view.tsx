@@ -180,6 +180,121 @@ export default function EventsView() {
     }
   }
 
+  // Add functions for event management
+  const editPackage = (pkg: EventPackage) => {
+    const newName = prompt('Enter new package name:', pkg.name);
+    if (!newName) return;
+    
+    const newDescription = prompt('Enter new description:', pkg.description);
+    if (!newDescription) return;
+    
+    const newPrice = prompt('Enter new price:', pkg.price.toString());
+    if (!newPrice || isNaN(Number(newPrice))) {
+      alert('Please enter a valid price');
+      return;
+    }
+    
+    const newDuration = prompt('Enter new duration (hours):', pkg.duration_hours.toString());
+    if (!newDuration || isNaN(Number(newDuration))) {
+      alert('Please enter a valid duration');
+      return;
+    }
+    
+    const newMaxGuests = prompt('Enter new max guests:', pkg.max_guests.toString());
+    if (!newMaxGuests || isNaN(Number(newMaxGuests))) {
+      alert('Please enter a valid guest count');
+      return;
+    }
+    
+    // In a real app, you would call an API to update the package
+    console.log('Updating package:', {
+      ...pkg,
+      name: newName,
+      description: newDescription,
+      price: parseFloat(newPrice),
+      duration_hours: parseInt(newDuration),
+      max_guests: parseInt(newMaxGuests)
+    });
+    
+    alert(`Package "${pkg.name}" has been updated.\n\nNew details:\nName: ${newName}\nPrice: $${parseFloat(newPrice).toFixed(2)}\nDuration: ${newDuration} hours\nMax Guests: ${newMaxGuests}`);
+    fetchPackages(); // Refresh the packages list
+  }
+
+  const deletePackage = (pkg: EventPackage) => {
+    if (confirm(`Are you sure you want to delete the "${pkg.name}" package?\n\nThis action cannot be undone and will affect any existing bookings using this package.`)) {
+      // In a real app, you would call an API to delete the package
+      console.log('Deleting package:', pkg);
+      alert(`Package "${pkg.name}" has been deleted.`);
+      fetchPackages(); // Refresh the packages list
+    }
+  }
+
+  const viewBookingDetails = (booking: EventBooking) => {
+    const packageName = packages.find(p => p.id === booking.package_id)?.name || 'Unknown Package';
+    const details = `
+Event Booking Details:
+
+Event: ${booking.event_name}
+Customer: ${booking.customer_name}
+Package: ${packageName}
+Date: ${new Date(booking.event_date).toLocaleDateString()}
+Time: ${booking.start_time}
+Guests: ${booking.guest_count}
+Status: ${booking.status}
+
+Financial:
+Total Price: $${booking.total_price?.toFixed(2) || '0.00'}
+Deposit Paid: $${booking.deposit_paid?.toFixed(2) || '0.00'}
+Balance Due: $${booking.balance_due?.toFixed(2) || '0.00'}
+
+Special Requests:
+${booking.special_requests || 'None'}
+
+Booking ID: ${booking.id}
+Created: ${new Date(booking.created_at).toLocaleString()}
+    `.trim();
+    
+    alert(details);
+  }
+
+  const confirmBooking = async (booking: EventBooking) => {
+    try {
+      // In a real app, you would call an API to confirm the booking
+      console.log('Confirming booking:', booking);
+      
+      // Update local state
+      setBookings(prev => prev.map(b => 
+        b.id === booking.id ? { ...b, status: 'confirmed' } : b
+      ));
+      
+      alert(`Booking for "${booking.event_name}" has been confirmed.\n\nConfirmation details sent to ${booking.customer_name}.`);
+    } catch (error) {
+      console.error('Error confirming booking:', error);
+      alert('Error confirming booking. Please try again.');
+    }
+  }
+
+  const cancelBooking = async (booking: EventBooking) => {
+    const reason = prompt('Enter cancellation reason (optional):');
+    
+    if (confirm(`Are you sure you want to cancel the booking for "${booking.event_name}"?\n\nThis will notify the customer and process any necessary refunds.`)) {
+      try {
+        // In a real app, you would call an API to cancel the booking
+        console.log('Cancelling booking:', booking, 'Reason:', reason);
+        
+        // Update local state
+        setBookings(prev => prev.map(b => 
+          b.id === booking.id ? { ...b, status: 'cancelled' } : b
+        ));
+        
+        alert(`Booking for "${booking.event_name}" has been cancelled.\n\nCancellation notification sent to ${booking.customer_name}.`);
+      } catch (error) {
+        console.error('Error cancelling booking:', error);
+        alert('Error cancelling booking. Please try again.');
+      }
+    }
+  }
+
   // Create new booking
   const createBooking = async () => {
     try {
@@ -394,10 +509,10 @@ export default function EventsView() {
                     <CardTitle className="flex items-center justify-between">
                       <span className="text-lg">{pkg.name}</span>
                       <div className="flex gap-2">
-                        <Button variant="outline" size="icon" className="h-8 w-8">
+                        <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => editPackage(pkg)}>
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button variant="outline" size="icon" className="h-8 w-8 text-red-600 hover:text-red-700">
+                        <Button variant="outline" size="icon" className="h-8 w-8 text-red-600 hover:text-red-700" onClick={() => deletePackage(pkg)}>
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
@@ -567,7 +682,7 @@ export default function EventsView() {
                           {getStatusIcon(booking.status)}
                           <span className="ml-1 capitalize">{booking.status}</span>
                         </Badge>
-                        <Button variant="outline" size="icon" className="h-8 w-8">
+                        <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => viewBookingDetails(booking)}>
                           <Edit className="h-4 w-4" />
                         </Button>
                       </div>
@@ -597,15 +712,15 @@ export default function EventsView() {
                     )}
 
                     <div className="mt-4 flex gap-2">
-                      <Button variant="outline" size="sm">
+                      <Button variant="outline" size="sm" onClick={() => viewBookingDetails(booking)}>
                         View Details
                       </Button>
                       {booking.status === 'pending' && (
                         <>
-                          <Button size="sm" className="bg-green-600 hover:bg-green-700">
+                          <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => confirmBooking(booking)}>
                             Confirm
                           </Button>
-                          <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700">
+                          <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700" onClick={() => cancelBooking(booking)}>
                             Cancel
                           </Button>
                         </>

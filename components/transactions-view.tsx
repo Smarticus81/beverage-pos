@@ -37,6 +37,67 @@ export default function TransactionsView() {
   const [lastUpdated, setLastUpdated] = useState(new Date())
 
   // Add functions for transaction actions
+  const exportData = () => {
+    try {
+      // Create CSV data from filtered transactions
+      const csvHeaders = [
+        'Order ID',
+        'Customer',
+        'Items Count', 
+        'Items Details',
+        'Subtotal',
+        'Tax',
+        'Total',
+        'Payment Method',
+        'Payment Status',
+        'Server',
+        'Table',
+        'Date',
+        'Time'
+      ];
+      
+      const csvData = filteredTransactions.map(transaction => [
+        transaction.id || '',
+        transaction.customerName || 'Walk-in Customer',
+        transaction.rawItems?.length || 0,
+        transaction.rawItems?.map((item: any) => `${item.name} (${item.quantity || 1}x)`).join('; ') || '',
+        (transaction.subtotal || 0).toFixed(2),
+        (transaction.tax || 0).toFixed(2),
+        (transaction.total || 0).toFixed(2),
+        transaction.paymentMethod || 'Cash',
+        transaction.paymentStatus || 'completed',
+        transaction.server || 'Bev AI',
+        transaction.tableNumber || '',
+        formatShortDate(transaction.created_at || transaction.timestamp),
+        formatTime(transaction.created_at || transaction.timestamp)
+      ]);
+      
+      // Create CSV content
+      const csvContent = [
+        csvHeaders.join(','),
+        ...csvData.map(row => row.map(cell => 
+          typeof cell === 'string' && cell.includes(',') ? `"${cell}"` : cell
+        ).join(','))
+      ].join('\n');
+      
+      // Create and download the file
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `transactions_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      alert(`Exported ${filteredTransactions.length} transactions to CSV file.`);
+    } catch (error) {
+      console.error('Error exporting data:', error);
+      alert('Error exporting data. Please try again.');
+    }
+  }
+
   const viewTransactionDetails = (transaction: any) => {
     alert(`Transaction Details:\n\nID: ${transaction.id}\nCustomer: ${transaction.customer_name || 'Walk-in Customer'}\nItems: ${transaction.items?.length || 0}\nTotal: $${transaction.total?.toFixed(2) || '0.00'}\nDate: ${new Date(transaction.created_at).toLocaleString()}`)
   }
@@ -224,7 +285,7 @@ export default function TransactionsView() {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          <Button className="bg-blue-600 hover:bg-blue-700">
+          <Button className="bg-blue-600 hover:bg-blue-700" onClick={exportData}>
             <Download className="h-4 w-4 mr-2" />
             Export Data
           </Button>

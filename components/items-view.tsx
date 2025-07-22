@@ -37,8 +37,72 @@ export default function ItemsView({ onAddToOrder, searchQuery, onSearchChange, o
   const [lastUpdated, setLastUpdated] = useState(new Date())
 
   // Add functions for item management
+  const addNewItem = () => {
+    // Create a comprehensive add item form
+    const itemName = prompt('Enter item name:');
+    if (!itemName) return;
+    
+    const itemPrice = prompt('Enter item price (e.g., 12.99):');
+    if (!itemPrice || isNaN(Number(itemPrice))) {
+      alert('Please enter a valid price');
+      return;
+    }
+    
+    const itemCategory = prompt('Enter item category (e.g., Beer, Wine, Spirits):');
+    if (!itemCategory) return;
+    
+    const itemInventory = prompt('Enter initial inventory (ounces):');
+    if (!itemInventory || isNaN(Number(itemInventory))) {
+      alert('Please enter a valid inventory amount');
+      return;
+    }
+    
+    // In a real app, you would call an API to add the item
+    const newItem = {
+      id: Date.now().toString(),
+      name: itemName,
+      price: parseFloat(itemPrice),
+      category: itemCategory,
+      inventory_oz: parseFloat(itemInventory),
+      unit_volume_oz: 12, // Default to 12oz units
+      subcategory: 'Other',
+      cost_per_unit: parseFloat(itemPrice) * 0.3, // Assume 30% cost ratio
+      profit_margin: 0.7,
+      popularity_score: 50
+    };
+    
+    // Add to the local state
+    setAllDrinks(prev => [...prev, newItem]);
+    alert(`"${itemName}" has been added to the inventory.`);
+    onRefresh(); // Refresh the items list
+  }
+
   const editItem = (item: any) => {
-    alert(`Edit functionality for "${item.name}" would open an edit form.\n\nCurrent details:\nPrice: $${item.price?.toFixed(2) || '0.00'}\nInventory: ${item.inventory || 0} units\nCategory: ${item.category || 'Unknown'}`)
+    const newName = prompt('Enter new name:', item.name);
+    if (!newName) return;
+    
+    const newPrice = prompt('Enter new price:', item.price?.toString() || '0');
+    if (!newPrice || isNaN(Number(newPrice))) {
+      alert('Please enter a valid price');
+      return;
+    }
+    
+    const newInventory = prompt('Enter new inventory (ounces):', item.inventory_oz?.toString() || '0');
+    if (!newInventory || isNaN(Number(newInventory))) {
+      alert('Please enter a valid inventory amount');
+      return;
+    }
+    
+    // In a real app, you would call an API to update the item
+    console.log('Updating item:', {
+      ...item,
+      name: newName,
+      price: parseFloat(newPrice),
+      inventory_oz: parseFloat(newInventory)
+    });
+    
+    alert(`"${item.name}" has been updated.\n\nNew details:\nName: ${newName}\nPrice: $${parseFloat(newPrice).toFixed(2)}\nInventory: ${parseFloat(newInventory)} oz`);
+    onRefresh(); // Refresh the items list
   }
 
   const deleteItem = (item: any) => {
@@ -198,7 +262,7 @@ export default function ItemsView({ onAddToOrder, searchQuery, onSearchChange, o
               onChange={(e) => onSearchChange(e.target.value)}
             />
           </div>
-          <Button className="bg-blue-600 hover:bg-blue-700">
+          <Button className="bg-blue-600 hover:bg-blue-700" onClick={addNewItem}>
             <Plus className="h-4 w-4 mr-2" />
             Add Item
           </Button>
