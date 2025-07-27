@@ -118,6 +118,45 @@ export async function GET() {
   }
 }
 
+// Endpoint to add items to voice cart (from UI)
+export async function PUT(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { action, drink_name, quantity } = body;
+
+    if (action === 'add') {
+      await invoke('cart_add', { 
+        clientId: 'default',
+        drink_name: drink_name,
+        quantity: quantity || 1
+      });
+      
+      // Clear cache when cart is modified
+      lastCartData = null;
+      lastCartCheck = 0;
+      
+      return NextResponse.json({ success: true, message: `Added ${drink_name} to voice cart` });
+    } else if (action === 'remove') {
+      await invoke('cart_remove', { 
+        clientId: 'default',
+        drink_name: drink_name,
+        quantity: quantity
+      });
+      
+      // Clear cache when cart is modified
+      lastCartData = null;
+      lastCartCheck = 0;
+      
+      return NextResponse.json({ success: true, message: `Removed ${drink_name} from voice cart` });
+    } else {
+      return NextResponse.json({ success: false, error: 'Invalid action' }, { status: 400 });
+    }
+  } catch (error) {
+    console.error('Error updating voice cart:', error);
+    return NextResponse.json({ success: false, error: 'Failed to update voice cart' }, { status: 500 });
+  }
+}
+
 // Endpoint to clear the voice cart (when UI completes an order)
 export async function DELETE() {
   try {
