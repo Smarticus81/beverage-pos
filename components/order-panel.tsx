@@ -3,7 +3,7 @@
 import { useEffect } from "react"
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Minus, Plus, Trash2 } from "lucide-react"
+import { Minus, Plus, Trash2, ShoppingCartIcon } from "lucide-react"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { VoiceControlButton } from "@/components/voice-control-button"
 
@@ -20,6 +20,7 @@ interface OrderPanelProps {
   updateQuantity: (id: string, quantity: number) => void
   total: number
   onCompleteOrder: () => void
+  clearCart?: () => void
 }
 
 export default function OrderPanel({ 
@@ -27,7 +28,8 @@ export default function OrderPanel({
   removeFromOrder, 
   updateQuantity, 
   total = 0, 
-  onCompleteOrder 
+  onCompleteOrder,
+  clearCart
 }: OrderPanelProps) {
   // Add debug logging
   useEffect(() => {
@@ -48,7 +50,20 @@ export default function OrderPanel({
   return (
     <Card className="border-[#e2e8f0] h-full flex flex-col">
       <CardHeader className="border-b border-[#e2e8f0] py-2 px-3">
-        <h2 className="text-sm font-medium text-black">Current Order</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-medium text-black">Current Order</h2>
+          {orders.length > 0 && clearCart && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 px-2 text-[10px] text-red-500 hover:text-red-700 hover:bg-red-50"
+              onClick={clearCart}
+            >
+              <ShoppingCartIcon className="h-3 w-3 mr-1" />
+              Clear
+            </Button>
+          )}
+        </div>
       </CardHeader>
 
       <CardContent className="flex-grow p-0">

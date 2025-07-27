@@ -100,19 +100,34 @@ export default function Home() {
 
   // Voice cart polling for syncing voice-added items with UI
   useEffect(() => {
+    // Flag to prevent sync loops
+    let isSyncing = false;
+    
     const pollVoiceCart = async () => {
+      if (isSyncing) return; // Prevent sync loops
+      
       try {
         const response = await fetch('/api/voice-cart');
         const data = await response.json();
         
         if (data.success) {
-          // Only update if the cart has changed to prevent unnecessary re-renders
-          const currentIds = orders.map(item => item.id).sort();
-          const voiceIds = data.items.map((item: any) => item.id).sort();
+          // Create a more comprehensive comparison to detect changes
+          const currentCartHash = orders.map(item => `${item.id}:${item.quantity}`).sort().join('|');
+          const voiceCartHash = data.items.map((item: any) => `${item.id}:${item.quantity}`).sort().join('|');
           
-          if (JSON.stringify(currentIds) !== JSON.stringify(voiceIds)) {
-            console.log('Voice cart sync: updating UI cart with', data.items.length, 'items');
+          // Only update if the carts are actually different
+          if (currentCartHash !== voiceCartHash) {
+            console.log('Voice cart sync: detected changes, updating UI cart');
+            console.log('Current cart:', currentCartHash);
+            console.log('Voice cart:', voiceCartHash);
+            
+            isSyncing = true;
             setOrders(data.items);
+            
+            // Reset sync flag after a brief delay
+            setTimeout(() => {
+              isSyncing = false;
+            }, 500);
           }
         }
       } catch (error) {
@@ -120,19 +135,19 @@ export default function Home() {
       }
     };
 
-    // Poll every 2 seconds instead of every 500ms for better performance
-    const interval = setInterval(pollVoiceCart, 2000);
+    // Poll every 1.5 seconds for responsive sync
+    const interval = setInterval(pollVoiceCart, 1500);
     
     // Also poll immediately on mount
     pollVoiceCart();
     
     return () => clearInterval(interval);
-  }, [orders]) // Depend on orders to avoid unnecessary polling when cart hasn't changed
+  }, [orders]) // Depend on orders to detect when UI changes
 
   // removed Vapi overlay logic
 
   // Add drink to order
-  const addToOrder = (drink: any) => {
+  const addToOrder = async (drink: any) => {
     setOrders((prevOrders) => {
       // Ensure ID comparison works properly by converting both to strings
       const drinkId = String(drink.id);
@@ -152,33 +167,123 @@ export default function Home() {
       };
       return [...prevOrders, newOrderItem];
     });
+
+    // Sync with voice cart - add item to voice cart as well
+    try {
+      const response = await fetch('/api/voice-cart', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'add',
+          drink_name: drink.name,
+          quantity: 1
+        }),
+      });
+
+      if (!response.ok) {
+        console.error('Failed to sync item to voice cart');
+      }
+    } catch (error) {
+      console.error('Error syncing to voice cart:', error);
+    }
   };
 
   // Remove item from order
-  const removeFromOrder = (itemId: string) => {
+  const removeFromOrder = async (itemId: string) => {
     if (itemId === "all") {
       setOrders([])
+      
+      // Clear voice cart as well
+      try {
+        await fetch('/api/voice-cart', { method: 'DELETE' });
+      } catch (error) {
+        console.error('Error clearing voice cart:', error);
+      }
       return
     }
 
+    // Find the item being removed to get its name for voice cart sync
+    const itemToRemove = orders.find((item) => item.id === itemId);
+    
     const updatedOrders = orders.filter((item) => item.id !== itemId)
     setOrders(updatedOrders)
+
+    // Sync with voice cart - remove item from voice cart as well
+    if (itemToRemove) {
+      try {
+        const response = await fetch('/api/voice-cart', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            action: 'remove',
+            drink_name: itemToRemove.name,
+            quantity: itemToRemove.quantity // Remove all of this item
+          }),
+        });
+
+        if (!response.ok) {
+          console.error('Failed to sync item removal to voice cart');
+        }
+      } catch (error) {
+        console.error('Error syncing removal to voice cart:', error);
+      }
+    }
   }
 
   // Clear entire cart
-  const clearCart = () => {
+  const clearCart = async () => {
     console.log("clearCart called - clearing orders");
     setOrders([])
+    
+    // Clear voice cart as well
+    try {
+      await fetch('/api/voice-cart', { method: 'DELETE' });
+    } catch (error) {
+      console.error('Error clearing voice cart:', error);
+    }
   }
 
   // Update item quantity
-  const updateQuantity = (itemId: string, newQuantity: number) => {
+  const updateQuantity = async (itemId: string, newQuantity: number) => {
     if (newQuantity <= 0) {
       removeFromOrder(itemId)
       return
     }
 
+    // Find the current item to get its name and current quantity
+    const currentItem = orders.find((item) => item.id === itemId);
+    if (!currentItem) return;
+
+    const quantityDifference = newQuantity - currentItem.quantity;
+
     setOrders(orders.map((item) => (item.id === itemId ? { ...item, quantity: newQuantity } : item)))
+
+    // Sync with voice cart
+    if (quantityDifference !== 0) {
+      try {
+        const response = await fetch('/api/voice-cart', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            action: quantityDifference > 0 ? 'add' : 'remove',
+            drink_name: currentItem.name,
+            quantity: Math.abs(quantityDifference)
+          }),
+        });
+
+        if (!response.ok) {
+          console.error('Failed to sync quantity change to voice cart');
+        }
+      } catch (error) {
+        console.error('Error syncing quantity change to voice cart:', error);
+      }
+    }
   }
 
   // Calculate totals
@@ -541,6 +646,7 @@ export default function Home() {
                 updateQuantity={updateQuantity}
                 total={calculateTotal()}
                 onCompleteOrder={completeOrder}
+                clearCart={clearCart}
               />
             </div>
           </>
@@ -624,6 +730,7 @@ export default function Home() {
                 updateQuantity={updateQuantity}
                 total={calculateTotal()}
                 onCompleteOrder={completeOrder}
+                clearCart={clearCart}
               />
             </div>
           </div>
